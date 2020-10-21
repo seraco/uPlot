@@ -1141,6 +1141,13 @@ function pxRatioFont(font) {
 	return [font, fontSize];
 }
 
+const toRotatedSideMap = {
+	0: 1,
+	1: 0,
+	2: 3,
+	3: 2,
+};
+
 function uPlot(opts, data, then) {
 	const self = {};
 
@@ -1406,6 +1413,7 @@ function uPlot(opts, data, then) {
 		axes.forEach((axis, i) => {
 			if (axis.show) {
 				let {side, size} = axis;
+				if (opts.rotated) side = toRotatedSideMap[side];
 				let isVt = side % 2;
 				let labelSize = axis.labelSize = (axis.label != null ? (axis.labelSize || 30) : 0);
 
@@ -1466,8 +1474,7 @@ function uPlot(opts, data, then) {
 		let off0 = plotTopCss;
 
 		function incrOffset(side, size) {
-
-			switch (side) {
+			switch (opts.rotated ? toRotatedSideMap[side] : side) {
 				case 1: off1 += size; return off1 - size;
 				case 2: off2 += size; return off2 - size;
 				case 3: off3 -= size; return off3 + size;
@@ -1820,10 +1827,11 @@ function uPlot(opts, data, then) {
 
 		const path = new Path2D();
 
+		const [xdata, ydata, xScale, yScale] = getXYDataAndScales(si, opts.rotated);
 		for (let pi = i0; pi <= i1; pi++) {
 			if (data[si][pi] != null) {
-				let x = round(getXPos(data[0][pi],  scales[xScaleKey], plotWid, plotLft));
-				let y = round(getYPos(data[si][pi], scales[s.scale],   plotHgt, plotTop));
+				let x = round(getXPos(xdata[pi], xScale, plotWid, plotLft));
+				let y = round(getYPos(ydata[pi], yScale, plotHgt, plotTop));
 
 				path.moveTo(x + rad, y);
 				path.arc(x, y, rad, 0, PI * 2);
@@ -1993,10 +2001,7 @@ function uPlot(opts, data, then) {
 	function buildPaths(self, is, _i0, _i1) {
 		const s = series[is];
 
-		const xdata  = data[0];
-		const ydata  = data[is];
-		const scaleX = scales[xScaleKey];
-		const scaleY = scales[s.scale];
+		const [xdata, ydata, scaleX, scaleY] = getXYDataAndScales(is, opts.rotated);
 
 		const _paths = dir == 1 ? {stroke: new Path2D(), fill: null, clip: null} : series[is-1]._paths;
 		const stroke = _paths.stroke;
@@ -2092,9 +2097,16 @@ function uPlot(opts, data, then) {
 			if (s.fill != null) {
 				let fill = _paths.fill = new Path2D(stroke);
 
-				let fillTo = round(getYPos(s.fillTo(self, is, s.min, s.max), scaleY, plotHgt, plotTop));
-				fill.lineTo(plotLft + plotWid, fillTo);
-				fill.lineTo(plotLft, fillTo);
+				let fillTo;
+				if (opts.rotated) {
+					fillTo = round(getXPos(s.fillTo(self, is, s.min, s.max), scaleX, plotWid, plotLft));
+					fill.lineTo(fillTo, plotTop);
+					fill.lineTo(fillTo, plotTop + plotHgt);
+				} else {
+					fillTo = round(getYPos(s.fillTo(self, is, s.min, s.max), scaleY, plotHgt, plotTop));
+					fill.lineTo(plotLft + plotWid, fillTo);
+					fill.lineTo(plotLft, fillTo);
+				}
 			}
 		}
 
@@ -2170,6 +2182,9 @@ function uPlot(opts, data, then) {
 				return;
 
 			let side = axis.side;
+			if (opts.rotated) {
+				side = toRotatedSideMap[side];
+			}
 			let ori = side % 2;
 
 			let {min, max} = scale;
@@ -2378,6 +2393,13 @@ function uPlot(opts, data, then) {
 		}
 	}
 
+	function getXYDataAndScales(si, rotated) {
+		if (rotated) {
+			return [data[si], data[0], scales[series[si].scale], scales[xScaleKey]];
+		}
+		return [data[0], data[si], scales[xScaleKey], scales[series[si].scale]];
+	}
+
 	self.setScale = setScale;
 
 //	INTERACTION
@@ -2405,8 +2427,8 @@ function uPlot(opts, data, then) {
 
 	const drag =  cursor.drag;
 
-	let dragX =  drag.x;
-	let dragY =  drag.y;
+	let dragX =  opts.rotated ? drag.y : drag.x;
+	let dragY =  opts.rotated ? drag.x : drag.y;
 
 	if ( cursor.show) {
 		if (cursor.x) {
@@ -2541,14 +2563,7 @@ function uPlot(opts, data, then) {
 		});
 	}
 
-	function scaleValueAtPos(pos, scale) {
-		let dim = plotWidCss;
-
-		if (scale != xScaleKey) {
-			dim = plotHgtCss;
-			pos = dim - pos;
-		}
-
+	function _scaleValueAtPos(pos, dim, scale) {
 		let pct = pos / dim;
 
 		let sc = scales[scale],
@@ -2562,6 +2577,17 @@ function uPlot(opts, data, then) {
 		}
 		else
 			return _min + (_max - _min) * pct;
+	}
+
+	function scaleValueAtPos(pos, scale) {
+		let dim = plotWidCss;
+
+		if (scale != xScaleKey) {
+			dim = plotHgtCss;
+			pos = dim - pos;
+		}
+
+		return _scaleValueAtPos(pos, dim, scale);
 	}
 
 	function closestIdxFromXpos(pos) {
@@ -2663,24 +2689,37 @@ function uPlot(opts, data, then) {
 		else {
 		//	let pctY = 1 - (y / rect[HEIGHT]);
 
-			let valAtPos = scaleValueAtPos(mouseLeft1, xScaleKey);
+			let valAtPos = _scaleValueAtPos(
+				opts.rotated ? plotHgtCss - mouseTop1 : mouseLeft1,
+				opts.rotated ? plotHgtCss : plotWidCss,
+				xScaleKey,
+			);
 
 			idx = closestIdx(valAtPos, data[0], i0, i1);
 
 			let scX = scales[xScaleKey];
 
-			let xPos = roundDec(getXPos(data[0][idx], scX, plotWidCss, 0), 3);
+			let _getXPos =
+				opts.rotated
+					? (val, sc) => getYPos(val, sc, plotHgtCss, 0)
+					: (val, sc) => getXPos(val, sc, plotWidCss, 0);
+			let _getYPos =
+				opts.rotated
+					? (val, sc) => getXPos(val, sc, plotWidCss, 0)
+					: (val, sc) => getYPos(val, sc, plotHgtCss, 0);
+
+			let xPos = roundDec(_getXPos(data[0][idx], scX), 3);
 
 			for (let i = 0; i < series.length; i++) {
 				let s = series[i];
 
 				let idx2  = cursor.dataIdx(self, i, idx, valAtPos);
-				let xPos2 = idx2 == idx ? xPos : roundDec(getXPos(data[0][idx2], scX, plotWidCss, 0), 3);
+				let xPos2 = idx2 == idx ? xPos : roundDec(_getXPos(data[0][idx2], scX), 3);
 
 				if (i > 0 && s.show) {
 					let valAtIdx = data[i][idx2];
 
-					let yPos = valAtIdx == null ? -10 : roundDec(getYPos(valAtIdx, scales[s.scale], plotHgtCss, 0), 3);
+					let yPos = valAtIdx == null ? -10 : roundDec(_getYPos(valAtIdx, scales[s.scale]), 3);
 
 					if (yPos > 0) {
 						let dist = abs(yPos - mouseTop1);
@@ -2691,7 +2730,14 @@ function uPlot(opts, data, then) {
 						}
 					}
 
-					 cursorPts.length > 1 && trans(cursorPts[i], xPos2, yPos, plotWidCss, plotHgtCss);
+					 cursorPts.length > 1
+						&& trans(
+							cursorPts[i],
+							opts.rotated ? yPos : xPos2,
+							opts.rotated ? xPos2 : yPos,
+							plotWidCss,
+							plotHgtCss,
+						);
 				}
 
 				if (showLegend && legend.live) {
@@ -2719,40 +2765,78 @@ function uPlot(opts, data, then) {
 
 				// match the dragX/dragY implicitness/explicitness of src
 				let sdrag = src.cursor.drag;
-				dragX = sdrag._x;
-				dragY = sdrag._y;
+				dragX = opts.rotated ? sdrag._y : sdrag._x;
+				dragY = opts.rotated ? sdrag._x : sdrag._y;
 
 				if (xKey) {
-					let sc = scales[xKey];
-					let srcLeft = src.posToVal(src.select[LEFT], xKey);
-					let srcRight = src.posToVal(src.select[LEFT] + src.select[WIDTH], xKey);
+					if (opts.rotated) {
+						let sc = scales[xKey];
+						let srcTop = _scaleValueAtPos(plotHgtCss - src.select[TOP], plotHgtCss, xKey);
+						let srcBottom = _scaleValueAtPos(
+							plotHgtCss - src.select[TOP] - src.select[HEIGHT],
+							plotHgtCss,
+							xKey,
+						);
 
-					select[LEFT] = getXPos(srcLeft, sc, plotWidCss, 0);
-					select[WIDTH] = abs(select[LEFT] - getXPos(srcRight, sc, plotWidCss, 0));
+						select[TOP] = getYPos(srcTop, sc, plotHgtCss, 0);
+						select[HEIGHT] = abs(select[TOP] - getYPos(srcBottom, sc, plotHgtCss, 0));
 
-					setStylePx(selectDiv, LEFT, select[LEFT]);
-					setStylePx(selectDiv, WIDTH, select[WIDTH]);
+						setStylePx(selectDiv, TOP, select[TOP]);
+						setStylePx(selectDiv, HEIGHT, select[HEIGHT]);
 
-					if (!yKey) {
-						setStylePx(selectDiv, TOP, select[TOP] = 0);
-						setStylePx(selectDiv, HEIGHT, select[HEIGHT] = plotHgtCss);
+						if (!yKey) {
+							setStylePx(selectDiv, LEFT, select[LEFT] = 0);
+							setStylePx(selectDiv, WIDTH, select[WIDTH] = plotWidCss);
+						}
+					} else {
+						let sc = scales[xKey];
+						let srcLeft = src.posToVal(src.select[LEFT], xKey);
+						let srcRight = src.posToVal(src.select[LEFT] + src.select[WIDTH], xKey);
+
+						select[LEFT] = getXPos(srcLeft, sc, plotWidCss, 0);
+						select[WIDTH] = abs(select[LEFT] - getXPos(srcRight, sc, plotWidCss, 0));
+
+						setStylePx(selectDiv, LEFT, select[LEFT]);
+						setStylePx(selectDiv, WIDTH, select[WIDTH]);
+
+						if (!yKey) {
+							setStylePx(selectDiv, TOP, select[TOP] = 0);
+							setStylePx(selectDiv, HEIGHT, select[HEIGHT] = plotHgtCss);
+						}
 					}
 				}
 
 				if (yKey) {
-					let sc = scales[yKey];
-					let srcTop = src.posToVal(src.select[TOP], yKey);
-					let srcBottom = src.posToVal(src.select[TOP] + src.select[HEIGHT], yKey);
+					if (opts.rotated) {
+						let sc = scales[yKey];
+						let srcLeft = _scaleValueAtPos(src.select[LEFT], plotWidCss, yKey);
+						let srcRight = _scaleValueAtPos(src.select[LEFT] + src.select[WIDTH], plotWidCss, yKey);
 
-					select[TOP] = getYPos(srcTop, sc, plotHgtCss, 0);
-					select[HEIGHT] = abs(select[TOP] - getYPos(srcBottom, sc, plotHgtCss, 0));
+						select[LEFT] = getXPos(srcLeft, sc, plotWidCss, 0);
+						select[WIDTH] = abs(select[LEFT] - getXPos(srcRight, sc, plotWidCss, 0));
 
-					setStylePx(selectDiv, TOP, select[TOP]);
-					setStylePx(selectDiv, HEIGHT, select[HEIGHT]);
+						setStylePx(selectDiv, LEFT, select[LEFT]);
+						setStylePx(selectDiv, WIDTH, select[WIDTH]);
 
-					if (!xKey) {
-						setStylePx(selectDiv, LEFT, select[LEFT] = 0);
-						setStylePx(selectDiv, WIDTH, select[WIDTH] = plotWidCss);
+						if (!xKey) {
+							setStylePx(selectDiv, TOP, select[TOP] = 0);
+							setStylePx(selectDiv, HEIGHT, select[HEIGHT] = plotHgtCss);
+						}
+					} else {
+						let sc = scales[yKey];
+						let srcTop = src.posToVal(src.select[TOP], yKey);
+						let srcBottom = src.posToVal(src.select[TOP] + src.select[HEIGHT], yKey);
+
+						select[TOP] = getYPos(srcTop, sc, plotHgtCss, 0);
+						select[HEIGHT] = abs(select[TOP] - getYPos(srcBottom, sc, plotHgtCss, 0));
+
+						setStylePx(selectDiv, TOP, select[TOP]);
+						setStylePx(selectDiv, HEIGHT, select[HEIGHT]);
+
+						if (!xKey) {
+							setStylePx(selectDiv, LEFT, select[LEFT] = 0);
+							setStylePx(selectDiv, WIDTH, select[WIDTH] = plotWidCss);
+						}
 					}
 				}
 			}
@@ -2760,16 +2844,16 @@ function uPlot(opts, data, then) {
 				let rawDX = abs(rawMouseLeft1 - rawMouseLeft0);
 				let rawDY = abs(rawMouseTop1 - rawMouseTop0);
 
-				dragX = drag.x && rawDX >= drag.dist;
-				dragY = drag.y && rawDY >= drag.dist;
+				dragX = opts.rotated ? drag.y && rawDY >= drag.dist : drag.x && rawDX >= drag.dist;
+				dragY = opts.rotated ? drag.x && rawDX >= drag.dist : drag.y && rawDY >= drag.dist;
 
 				let uni = drag.uni;
 
 				if (uni != null) {
 					// only calc drag status if they pass the dist thresh
 					if (dragX && dragY) {
-						dragX = rawDX >= uni;
-						dragY = rawDY >= uni;
+						dragX = opts.rotated ? rawDY >= uni : rawDX >= uni;
+						dragY = opts.rotated ? rawDX >= uni : rawDY >= uni;
 
 						// force unidirectionality when both are under uni limit
 						if (!dragX && !dragY) {
@@ -2821,8 +2905,8 @@ function uPlot(opts, data, then) {
 		cursor.idx = idx;
 		cursor.left = mouseLeft1;
 		cursor.top = mouseTop1;
-		drag._x = dragX;
-		drag._y = dragY;
+		drag._x = opts.rotated ? dragY : dragX;
+		drag._y = opts.rotated ? dragX : dragY;
 
 		// if ts is present, means we're implicitly syncing own cursor as a result of debounced rAF
 		if (ts != null) {
@@ -2938,24 +3022,47 @@ function uPlot(opts, data, then) {
 		//	}
 
 			batch(() => {
-				if (dragX) {
-					_setScale(xScaleKey,
-						scaleValueAtPos(select[LEFT], xScaleKey),
-						scaleValueAtPos(select[LEFT] + select[WIDTH], xScaleKey)
-					);
-				}
+				if (opts.rotated) {
+					if (dragY) {
+						_setScale(xScaleKey,
+							_scaleValueAtPos(plotHgtCss - select[TOP] - select[HEIGHT], plotHgtCss, xScaleKey),
+							_scaleValueAtPos(plotHgtCss - select[TOP], plotHgtCss, xScaleKey)
+						);
+					}
 
-				if (dragY) {
-					for (let k in scales) {
-						let sc = scales[k];
+					if (dragX) {
+						for (let k in scales) {
+							let sc = scales[k];
 
-						if (k != xScaleKey && sc.from == null && sc.min != inf) {
-							_setScale(k,
-								scaleValueAtPos(select[TOP] + select[HEIGHT], k),
-								scaleValueAtPos(select[TOP], k)
-							);
+							if (k != xScaleKey && sc.from == null && sc.min != inf) {
+								_setScale(k,
+									_scaleValueAtPos(select[LEFT], plotWidCss, k),
+									_scaleValueAtPos(select[LEFT] + select[WIDTH], plotWidCss, k)
+								);
+							}
 						}
 					}
+				} else {
+					if (dragX) {
+						_setScale(xScaleKey,
+							scaleValueAtPos(select[LEFT], xScaleKey),
+							scaleValueAtPos(select[LEFT] + select[WIDTH], xScaleKey)
+						);
+					}
+
+					if (dragY) {
+						for (let k in scales) {
+							let sc = scales[k];
+
+							if (k != xScaleKey && sc.from == null && sc.min != inf) {
+								_setScale(k,
+									scaleValueAtPos(select[TOP] + select[HEIGHT], k),
+									scaleValueAtPos(select[TOP], k)
+								);
+							}
+						}
+					}
+
 				}
 			});
 
