@@ -369,7 +369,7 @@ declare namespace uPlot {
 
 			/** path for clipping fill & stroke */
 			clip?: Path2D;
-		};
+		} | null;
 
 		points?: {
 			/** if boolean or returns boolean, round points are drawn with defined options, else fn should draw own custom points via self.ctx */
