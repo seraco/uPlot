@@ -1671,9 +1671,14 @@ function uPlot(opts, data, then) {
 		if (dataLen > 0) {
 			i0 = idxs[0] = 0;
 			i1 = idxs[1] = dataLen - 1;
-
-			_min = xScaleDistr == 2 ? i0 : data[0][i0];
-			_max = xScaleDistr == 2 ? i1 : data[0][i1];
+			if (opts.unsorted) {
+				var minMax = getMinMax(data[0], i0, i1, 0);
+				_min = xScaleDistr == 2 ? i0 : minMax[0];
+				_max = xScaleDistr == 2 ? i1 : minMax[1];
+			} else {
+				_min = xScaleDistr == 2 ? i0 : data[0][i0];
+				_max = xScaleDistr == 2 ? i1 : data[0][i1];
+			}
 		}
 		else {
 			i0 = idxs[0] = _min = null;
