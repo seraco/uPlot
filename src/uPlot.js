@@ -779,7 +779,7 @@ export default function uPlot(opts, data, then) {
 				let k = s.scale;
 				let wsc = wipScales[k];
 
-				if (i == 0) {
+				if (i == 0 && !opts.unsorted) {
 					let minMax = wsc.range(self, wsc.min, wsc.max, k);
 
 					wsc.min = minMax[0];
@@ -1445,7 +1445,7 @@ export default function uPlot(opts, data, then) {
 			if (dataLen > 1 && opts.max - opts.min < 1e-16)
 				return;
 
-			if (key == xScaleKey) {
+			if (key == xScaleKey && !opts.unsorted) {
 				if (sc.distr == 2 && dataLen > 0) {
 					opts.min = closestIdx(opts.min, data[0]);
 					opts.max = closestIdx(opts.max, data[0]);
@@ -1765,7 +1765,7 @@ export default function uPlot(opts, data, then) {
 				xScaleKey,
 			);
 
-			idx = closestIdx(valAtPos, data[0], i0, i1);
+			idx = closestIdx(valAtPos, data[0], i0, i1, !opts.unsorted);
 
 			let scX = scales[xScaleKey];
 

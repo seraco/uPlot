@@ -13,7 +13,14 @@ export function debounce(fn, time) {
 }
 
 // binary search for index of closest value
-export function closestIdx(num, arr, lo, hi) {
+export function closestIdx(num, arr, lo, hi, sorted = true) {
+	if (sorted) {
+		return closestIdxBinary(num, arr, lo, hi);
+	}
+	return closestIdxUnsorted(num, arr);
+}
+
+export function closestIdxBinary(num, arr, lo, hi) {
 	let mid;
 	lo = lo || 0;
 	hi = hi || arr.length - 1;
@@ -32,6 +39,19 @@ export function closestIdx(num, arr, lo, hi) {
 		return lo;
 
 	return hi;
+}
+
+export function closestIdxUnsorted(num, arr) {
+	let minDist = inf;
+	let idx = 0;
+	for (let i = 0; i < arr.length; i++) {
+		let dist = abs(arr[i] - num);
+		if (dist < minDist) {
+			minDist = dist;
+			idx = i;
+		}
+	}
+	return idx;
 }
 
 export function getMinMax(data, _i0, _i1, sorted) {

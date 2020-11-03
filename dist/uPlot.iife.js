@@ -25,7 +25,16 @@ var uPlot = (function () {
 	}
 
 	// binary search for index of closest value
-	function closestIdx(num, arr, lo, hi) {
+	function closestIdx(num, arr, lo, hi, sorted) {
+		if ( sorted === void 0 ) sorted = true;
+
+		if (sorted) {
+			return closestIdxBinary(num, arr, lo, hi);
+		}
+		return closestIdxUnsorted(num, arr);
+	}
+
+	function closestIdxBinary(num, arr, lo, hi) {
 		var mid;
 		lo = lo || 0;
 		hi = hi || arr.length - 1;
@@ -44,6 +53,19 @@ var uPlot = (function () {
 			{ return lo; }
 
 		return hi;
+	}
+
+	function closestIdxUnsorted(num, arr) {
+		var minDist = inf;
+		var idx = 0;
+		for (var i = 0; i < arr.length; i++) {
+			var dist = abs(arr[i] - num);
+			if (dist < minDist) {
+				minDist = dist;
+				idx = i;
+			}
+		}
+		return idx;
 	}
 
 	function getMinMax(data, _i0, _i1, sorted) {
@@ -1711,7 +1733,7 @@ var uPlot = (function () {
 					var k = s.scale;
 					var wsc = wipScales[k];
 
-					if (i == 0) {
+					if (i == 0 && !opts.unsorted) {
 						var minMax = wsc.range(self, wsc.min, wsc.max, k);
 
 						wsc.min = minMax[0];
@@ -2391,7 +2413,7 @@ var uPlot = (function () {
 				if (dataLen > 1 && opts.max - opts.min < 1e-16)
 					{ return; }
 
-				if (key == xScaleKey) {
+				if (key == xScaleKey && !opts.unsorted) {
 					if (sc.distr == 2 && dataLen > 0) {
 						opts.min = closestIdx(opts.min, data[0]);
 						opts.max = closestIdx(opts.max, data[0]);
@@ -2713,7 +2735,7 @@ var uPlot = (function () {
 					xScaleKey
 				);
 
-				idx = closestIdx(valAtPos, data[0], i0, i1);
+				idx = closestIdx(valAtPos, data[0], i0, i1, !opts.unsorted);
 
 				var scX = scales[xScaleKey];
 
