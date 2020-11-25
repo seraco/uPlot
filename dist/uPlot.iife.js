@@ -1992,40 +1992,34 @@ var uPlot = (function () {
 
 				clip = new Path2D();
 
-				var prevGapEnd = opts.rotated ? plotTop + plotHgt : plotLft;
+				var prevGapEnd = plotLft;
 
 				for (var i = 0; i < gaps.length; i++) {
 					var g = gaps[i];
 
-					if (opts.rotated) {
-						clip.rect(plotLft, g[0], plotLft + plotWid, g[0] - prevGapEnd);
-					} else {
-						clip.rect(prevGapEnd, plotTop, g[0] - prevGapEnd, plotTop + plotHgt);
-					}
+					clip.rect(prevGapEnd, plotTop, g[0] - prevGapEnd, plotTop + plotHgt);
 
 					prevGapEnd = g[1];
 				}
 
-				if (opts.rotated) {
-					clip.rect(plotLft, plotTop - prevGapEnd, plotLft + plotWid, plotTop + plotHgt - prevGapEnd);
-				} else {
-					clip.rect(prevGapEnd, plotTop, plotLft + plotWid - prevGapEnd, plotTop + plotHgt);
-				}
+				clip.rect(prevGapEnd, plotTop, plotLft + plotWid - prevGapEnd, plotTop + plotHgt);
 			}
 
 			return clip;
 		}
 
-		function addGap(gaps, outVal, val) {
+		function addGap(gaps, outX, x) {
 			var prevGap = gaps[gaps.length - 1];
 
-			if (prevGap && prevGap[0] == outVal)			// TODO: gaps must be encoded at stroke widths?
-				{ prevGap[1] = val; }
+			if (prevGap && prevGap[0] == outX)			// TODO: gaps must be encoded at stroke widths?
+				{ prevGap[1] = x; }
 			else
-				{ gaps.push([outVal, val]); }
+				{ gaps.push([outX, x]); }
 		}
 
 		function buildPaths(self, is, _i0, _i1) {
+			var s = series[is];
+
 			var ref = getXYDataAndScales(is, opts.rotated);
 			var xdata = ref[0];
 			var ydata = ref[1];
@@ -2034,114 +2028,65 @@ var uPlot = (function () {
 
 			var _paths =  {stroke: new Path2D(), clip: null} ;
 			var stroke = _paths.stroke;
+			var width = roundDec(s[WIDTH] * pxRatio, 3);
 
 			var minY = inf,
 				maxY = -inf,
-				minX = inf,
-				maxX = -inf,
 				outY, outX;
 
 			// todo: don't build gaps on dir = -1 pass
 			var gaps = [];
 
 			var accX = round(getXPos(xdata[ _i0 ], scaleX, plotWid, plotLft));
-			var accY = round(getYPos(ydata[ _i0 ], scaleY, plotHgt, plotTop));
 
-			if (opts.rotated) {
-				for (var i =  _i0 ; i >= _i0 && i <= _i1; i += dir) {
-					var y = round(getYPos(ydata[i], scaleY, plotHgt, plotTop));
+			for (var i =  _i0 ; i >= _i0 && i <= _i1; i += dir) {
+				var x = round(getXPos(xdata[i], scaleX, plotWid, plotLft));
 
-					if (y == accY) {
-						if (xdata[i] != null) {
-							outX = round(getXPos(xdata[i], scaleX, plotWid, plotLft));
-							minX = min(outX, minX);
-							maxX = max(outX, maxX);
-						}
-					}
-					else {
-						var _addGap = false;
-						if (minX != inf) {
-							stroke.lineTo(minX, accY);
-							stroke.lineTo(maxX, accY);
-							stroke.lineTo(outX, accY);
-							outY = accY;
-						}
-						else {
-							_addGap = true;
-						}
-						if (xdata[i] != null) {
-							outX = round(getXPos(xdata[i], scaleX, plotWid, plotLft));
-							stroke.lineTo(outX, y);
-							minX = maxX = outX;
-							// prior pixel can have data but still start a gap if ends with null
-							if (y - accY > 1 && xdata[i-1] == null)
-								{ _addGap = true; }
-						}
-						else {
-							minX = inf;
-							maxX = -inf;
-						}
-						_addGap && addGap(gaps, outX, y);
-						accY = y;
+				if (x == accX) {
+					if (ydata[i] != null) {
+						outY = round(getYPos(ydata[i], scaleY, plotHgt, plotTop));
+						minY = min(outY, minY);
+						maxY = max(outY, maxY);
 					}
 				}
-			} else {
-				for (var i$1 =  _i0 ; i$1 >= _i0 && i$1 <= _i1; i$1 += dir) {
-					var x = round(getXPos(xdata[i$1], scaleX, plotWid, plotLft));
+				else {
+					var _addGap = false;
 
-					if (x == accX) {
-						if (ydata[i$1] != null) {
-							outY = round(getYPos(ydata[i$1], scaleY, plotHgt, plotTop));
-							minY = min(outY, minY);
-							maxY = max(outY, maxY);
-						}
+					if (minY != inf) {
+						stroke.lineTo(accX, minY);
+						stroke.lineTo(accX, maxY);
+						stroke.lineTo(accX, outY);
+						outX = accX;
+					}
+					else
+						{ _addGap = true; }
+
+					if (ydata[i] != null) {
+						outY = round(getYPos(ydata[i], scaleY, plotHgt, plotTop));
+						stroke.lineTo(x, outY);
+						minY = maxY = outY;
+
+						// prior pixel can have data but still start a gap if ends with null
+						if (x - accX > 1 && ydata[i-1] == null)
+							{ _addGap = true; }
 					}
 					else {
-						var _addGap$1 = false;
-						if (minY != inf) {
-							stroke.lineTo(accX, minY);
-							stroke.lineTo(accX, maxY);
-							stroke.lineTo(accX, outY);
-							outX = accX;
-						}
-						else {
-							_addGap$1 = true;
-						}
-						if (ydata[i$1] != null) {
-							outY = round(getYPos(ydata[i$1], scaleY, plotHgt, plotTop));
-							stroke.lineTo(x, outY);
-							minY = maxY = outY;
-							// prior pixel can have data but still start a gap if ends with null
-							if (x - accX > 1 && ydata[i$1-1] == null)
-								{ _addGap$1 = true; }
-						}
-						else {
-							minY = inf;
-							maxY = -inf;
-						}
-						_addGap$1 && addGap(gaps, outX, x);
-						accX = x;
+						minY = inf;
+						maxY = -inf;
 					}
+
+					_addGap && addGap(gaps, outX, x);
+
+					accX = x;
 				}
 			}
-
 
 			// extend or insert rightmost gap if no data exists to the right
-			if (opts.rotated) {
-				if (xdata[_i1] == null)
-					{ addGap(gaps, outY, accY); }
-			} else {
-				if (ydata[_i1] == null)
-					{ addGap(gaps, outX, accX); }
-			}
+			if (ydata[_i1] == null)
+				{ addGap(gaps, outX, accX); }
 
 			{
-				_paths.clip = buildClip(
-					is,
-					gaps,
-					opts.rotated ? xdata[_i0] == null : ydata[_i0] == null,
-					opts.rotated ? xdata[_i1] == null : ydata[_i1] == null
-				);
+				_paths.clip = buildClip(is, gaps, ydata[_i0] == null, ydata[_i1] == null);
 			}
 
 			return _paths;
