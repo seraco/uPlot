@@ -1006,6 +1006,10 @@ export default function uPlot(opts, data, then) {
 			if (clip != null)
 				ctx.clip(clip);
 
+			if (s.band) {
+				ctx.fill(stroke);
+				width && ctx.stroke(stroke);
+			}
 			else {
 				width && ctx.stroke(stroke);
 
@@ -1020,6 +1024,8 @@ export default function uPlot(opts, data, then) {
 			ctx.globalAlpha = 1;
 		}
 
+		if (s.band)
+			dir *= -1;
 	}
 
 	function buildClip(is, gaps, nullHead, nullTail) {
@@ -1085,6 +1091,15 @@ export default function uPlot(opts, data, then) {
 
 		let accX = round(getXPos(xdata[dir == 1 ? _i0 : _i1], scaleX, plotWid, plotLft));
 
+		// the moves the shape edge outside the canvas so stroke doesnt bleed in
+		if (s.band && dir == 1 && _i0 == i0) {
+			if (width)
+				stroke.lineTo(-width, round(getYPos(ydata[_i0], scaleY, plotHgt, plotTop)));
+
+			if (scaleX.min < xdata[0])
+				gaps.push([plotLft, accX - 1]);
+		}
+
 		for (let i = dir == 1 ? _i0 : _i1; i >= _i0 && i <= _i1; i += dir) {
 			let x = round(getXPos(xdata[i], scaleX, plotWid, plotLft));
 
@@ -1131,6 +1146,26 @@ export default function uPlot(opts, data, then) {
 		if (ydata[_i1] == null)
 			addGap(gaps, outX, accX);
 
+		if (s.band) {
+			let overShoot = width * 100, _iy, _x;
+
+			// the moves the shape edge outside the canvas so stroke doesnt bleed in
+			if (dir == -1 && _i0 == i0) {
+				_x = plotLft - overShoot;
+				_iy = _i0;
+			}
+
+			if (dir == 1 && _i1 == i1) {
+				_x = plotLft + plotWid + overShoot;
+				_iy = _i1;
+
+				if (scaleX.max > xdata[dataLen - 1])
+					gaps.push([accX, plotLft + plotWid]);
+			}
+
+			stroke.lineTo(_x, round(getYPos(ydata[_iy], scaleY, plotHgt, plotTop)));
+		}
+
 		if (dir == 1) {
 			_paths.clip = buildClip(is, gaps, ydata[_i0] == null, ydata[_i1] == null);
 
@@ -1149,6 +1184,9 @@ export default function uPlot(opts, data, then) {
 				}
 			}
 		}
+
+		if (s.band)
+			dir *= -1;
 
 		return _paths;
 	}
@@ -1531,6 +1569,13 @@ export default function uPlot(opts, data, then) {
 				s.show = opts.show;
 				FEAT_LEGEND && toggleDOM(i, opts.show);
 
+				if (s.band) {
+					// not super robust, will break if two bands are adjacent
+					let ip = series[i+1] && series[i+1].band ? i+1 : i-1;
+					series[ip].show = s.show;
+					FEAT_LEGEND && toggleDOM(ip, opts.show);
+				}
+
 				_setScale(xScaleKey, scales[xScaleKey].min, scales[xScaleKey].max);		// redraw
 			}
 	//	});
@@ -1555,7 +1600,15 @@ export default function uPlot(opts, data, then) {
 	}
 
 	function _setAlpha(i, value) {
+		let s = series[i];
+
 		_alpha(i, value);
+
+		if (s.band) {
+			// not super robust, will break if two bands are adjacent
+			let ip = series[i+1].band ? i+1 : i-1;
+			_alpha(ip, value);
+		}
 	}
 
 	// y-distance
