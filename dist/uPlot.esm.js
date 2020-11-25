@@ -2067,7 +2067,7 @@ function uPlot(opts, data, then) {
 						minX = inf;
 						maxX = -inf;
 					}
-					_addGap && addGap(gaps, outX, y);
+					_addGap && addGap(gaps, outY, y);
 					accY = y;
 				}
 			}
