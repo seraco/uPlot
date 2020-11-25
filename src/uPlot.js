@@ -97,7 +97,6 @@ import {
 	lineMult,
 	ptDia,
 	cursorOpts,
-	seriesFillTo,
 
 	xAxisOpts,
 	yAxisOpts,
@@ -361,7 +360,6 @@ export default function uPlot(opts, data, then) {
 		let indic = placeDiv(LEGEND_MARKER, label);
 		let borderColor = s.width ? s.stroke : i > 0 && s.points.width ? s.points.stroke : null;
 		indic.style.borderColor = borderColor || hexBlack;
-		indic.style.backgroundColor = s.fill || null;
 
 		let text = placeDiv(LEGEND_LABEL, label);
 		text.textContent = s.label;
@@ -597,7 +595,6 @@ export default function uPlot(opts, data, then) {
 		if (i > 0) {
 			s.width = s.width == null ? 1 : s.width;
 			s.paths = s.paths || (FEAT_PATHS && buildPaths);
-			s.fillTo = s.fillTo || seriesFillTo;
 			let _ptDia = ptDia(s.width, 1);
 			s.points = assign({}, {
 				size: _ptDia,
@@ -972,11 +969,11 @@ export default function uPlot(opts, data, then) {
 		const s = series[si];
 
 		if (dir == 1) {
-			const { stroke, fill, clip } = s._paths;
+			const { stroke, clip } = s._paths;
 			const width = roundDec(s[WIDTH] * pxRatio, 3);
 			const offset = (width % 2) / 2;
 
-			setCtxStyle(s.stroke, width, s.dash, s.fill);
+			setCtxStyle(s.stroke, width, s.dash);
 
 			ctx.globalAlpha = s.alpha;
 
@@ -1008,9 +1005,6 @@ export default function uPlot(opts, data, then) {
 
 			else {
 				width && ctx.stroke(stroke);
-
-				if (s.fill != null)
-					ctx.fill(fill);
 			}
 
 			ctx.restore();
@@ -1072,7 +1066,7 @@ export default function uPlot(opts, data, then) {
 
 		const [xdata, ydata, scaleX, scaleY] = getXYDataAndScales(is, opts.rotated);
 
-		const _paths = dir == 1 ? {stroke: new Path2D(), fill: null, clip: null} : series[is-1]._paths;
+		const _paths = dir == 1 ? {stroke: new Path2D(), clip: null} : series[is-1]._paths;
 		const stroke = _paths.stroke;
 		const width = roundDec(s[WIDTH] * pxRatio, 3);
 
@@ -1133,21 +1127,6 @@ export default function uPlot(opts, data, then) {
 
 		if (dir == 1) {
 			_paths.clip = buildClip(is, gaps, ydata[_i0] == null, ydata[_i1] == null);
-
-			if (s.fill != null) {
-				let fill = _paths.fill = new Path2D(stroke);
-
-				let fillTo;
-				if (opts.rotated) {
-					fillTo = round(getXPos(s.fillTo(self, is, s.min, s.max), scaleX, plotWid, plotLft));
-					fill.lineTo(fillTo, plotTop);
-					fill.lineTo(fillTo, plotTop + plotHgt);
-				} else {
-					fillTo = round(getYPos(s.fillTo(self, is, s.min, s.max), scaleY, plotHgt, plotTop));
-					fill.lineTo(plotLft + plotWid, fillTo);
-					fill.lineTo(plotLft, fillTo);
-				}
-			}
 		}
 
 		return _paths;

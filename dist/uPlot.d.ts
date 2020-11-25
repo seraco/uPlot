@@ -364,9 +364,6 @@ declare namespace uPlot {
 			/** path to stroke */
 			stroke?: Path2D;
 
-			/** path to fill */
-			fill?: Path2D;
-
 			/** path for clipping fill & stroke */
 			clip?: Path2D;
 		} | null;
@@ -396,12 +393,6 @@ declare namespace uPlot {
 
 		/** line width in CSS pixels */
 		width?: CanvasRenderingContext2D['lineWidth'];
-
-		/** area fill & legend color */
-		fill?: CanvasRenderingContext2D['fillStyle'];
-
-		/** area fill baseline (default: 0) */
-		fillTo?: number | ((self: uPlot, seriesIdx: number, dataMin: number, dataMax: number) => number);
 
 		/** line dash segment array */
 		dash?: number[];					// CanvasRenderingContext2D['setLineDash'];
