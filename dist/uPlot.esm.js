@@ -1022,6 +1022,11 @@ function seriesPoints(self, si) {
 	return idxs[1] - idxs[0] <= maxPts;
 }
 
+function seriesFillTo(self, seriesIdx, dataMin, dataMax) {
+	let scale = self.scales[self.series[seriesIdx].scale];
+	return scale.distr == 3 ? scale.min : 0;
+}
+
 const ySeriesOpts = {
 	scale: "y",
 	auto: true,
@@ -1306,6 +1311,7 @@ function uPlot(opts, data, then) {
 		let indic = placeDiv(LEGEND_MARKER, label);
 		let borderColor = s.width ? s.stroke : i > 0 && s.points.width ? s.points.stroke : null;
 		indic.style.borderColor = borderColor || hexBlack;
+		indic.style.backgroundColor = s.fill || null;
 
 		let text = placeDiv(LEGEND_LABEL, label);
 		text.textContent = s.label;
@@ -1541,6 +1547,7 @@ function uPlot(opts, data, then) {
 		if (i > 0) {
 			s.width = s.width == null ? 1 : s.width;
 			s.paths = s.paths || ( buildPaths);
+			s.fillTo = s.fillTo || seriesFillTo;
 			let _ptDia = ptDia(s.width, 1);
 			s.points = assign({}, {
 				size: _ptDia,
@@ -1914,12 +1921,12 @@ function uPlot(opts, data, then) {
 	function drawPath(si) {
 		const s = series[si];
 
-		{
-			const { stroke, clip } = s._paths;
+		if (dir == 1) {
+			const { stroke, fill, clip } = s._paths;
 			const width = roundDec(s[WIDTH] * pxRatio, 3);
 			const offset = (width % 2) / 2;
 
-			setCtxStyle(s.stroke, width, s.dash);
+			setCtxStyle(s.stroke, width, s.dash, s.fill);
 
 			ctx.globalAlpha = s.alpha;
 
@@ -1949,8 +1956,15 @@ function uPlot(opts, data, then) {
 			if (clip != null)
 				ctx.clip(clip);
 
+			if (s.band) {
+				ctx.fill(stroke);
+				width && ctx.stroke(stroke);
+			}
 			else {
 				width && ctx.stroke(stroke);
+
+				if (s.fill != null)
+					ctx.fill(fill);
 			}
 
 			ctx.restore();
@@ -1960,6 +1974,8 @@ function uPlot(opts, data, then) {
 			ctx.globalAlpha = 1;
 		}
 
+		if (s.band)
+			dir *= -1;
 	}
 
 	function buildClip(is, gaps, nullHead, nullTail) {
@@ -2012,7 +2028,7 @@ function uPlot(opts, data, then) {
 
 		const [xdata, ydata, scaleX, scaleY] = getXYDataAndScales(is, opts.rotated);
 
-		const _paths =  {stroke: new Path2D(), clip: null} ;
+		const _paths = dir == 1 ? {stroke: new Path2D(), fill: null, clip: null} : series[is-1]._paths;
 		const stroke = _paths.stroke;
 		const width = roundDec(s[WIDTH] * pxRatio, 3);
 
@@ -2023,9 +2039,18 @@ function uPlot(opts, data, then) {
 		// todo: don't build gaps on dir = -1 pass
 		let gaps = [];
 
-		let accX = round(getXPos(xdata[ _i0 ], scaleX, plotWid, plotLft));
+		let accX = round(getXPos(xdata[dir == 1 ? _i0 : _i1], scaleX, plotWid, plotLft));
 
-		for (let i =  _i0 ; i >= _i0 && i <= _i1; i += dir) {
+		// the moves the shape edge outside the canvas so stroke doesnt bleed in
+		if (s.band && dir == 1 && _i0 == i0) {
+			if (width)
+				stroke.lineTo(-width, round(getYPos(ydata[_i0], scaleY, plotHgt, plotTop)));
+
+			if (scaleX.min < xdata[0])
+				gaps.push([plotLft, accX - 1]);
+		}
+
+		for (let i = dir == 1 ? _i0 : _i1; i >= _i0 && i <= _i1; i += dir) {
 			let x = round(getXPos(xdata[i], scaleX, plotWid, plotLft));
 
 			if (x == accX) {
@@ -2071,9 +2096,47 @@ function uPlot(opts, data, then) {
 		if (ydata[_i1] == null)
 			addGap(gaps, outX, accX);
 
-		{
-			_paths.clip = buildClip(is, gaps, ydata[_i0] == null, ydata[_i1] == null);
+		if (s.band) {
+			let overShoot = width * 100, _iy, _x;
+
+			// the moves the shape edge outside the canvas so stroke doesnt bleed in
+			if (dir == -1 && _i0 == i0) {
+				_x = plotLft - overShoot;
+				_iy = _i0;
+			}
+
+			if (dir == 1 && _i1 == i1) {
+				_x = plotLft + plotWid + overShoot;
+				_iy = _i1;
+
+				if (scaleX.max > xdata[dataLen - 1])
+					gaps.push([accX, plotLft + plotWid]);
+			}
+
+			stroke.lineTo(_x, round(getYPos(ydata[_iy], scaleY, plotHgt, plotTop)));
 		}
+
+		if (dir == 1) {
+			_paths.clip = buildClip(is, gaps, ydata[_i0] == null, ydata[_i1] == null);
+
+			if (s.fill != null) {
+				let fill = _paths.fill = new Path2D(stroke);
+
+				let fillTo;
+				if (opts.rotated) {
+					fillTo = round(getXPos(s.fillTo(self, is, s.min, s.max), scaleX, plotWid, plotLft));
+					fill.lineTo(fillTo, plotTop);
+					fill.lineTo(fillTo, plotTop + plotHgt);
+				} else {
+					fillTo = round(getYPos(s.fillTo(self, is, s.min, s.max), scaleY, plotHgt, plotTop));
+					fill.lineTo(plotLft + plotWid, fillTo);
+					fill.lineTo(plotLft, fillTo);
+				}
+			}
+		}
+
+		if (s.band)
+			dir *= -1;
 
 		return _paths;
 	}
@@ -2456,6 +2519,13 @@ function uPlot(opts, data, then) {
 				s.show = opts.show;
 				 toggleDOM(i, opts.show);
 
+				if (s.band) {
+					// not super robust, will break if two bands are adjacent
+					let ip = series[i+1] && series[i+1].band ? i+1 : i-1;
+					series[ip].show = s.show;
+					 toggleDOM(ip, opts.show);
+				}
+
 				_setScale(xScaleKey, scales[xScaleKey].min, scales[xScaleKey].max);		// redraw
 			}
 	//	});
@@ -2480,7 +2550,15 @@ function uPlot(opts, data, then) {
 	}
 
 	function _setAlpha(i, value) {
+		let s = series[i];
+
 		_alpha(i, value);
+
+		if (s.band) {
+			// not super robust, will break if two bands are adjacent
+			let ip = series[i+1].band ? i+1 : i-1;
+			_alpha(ip, value);
+		}
 	}
 
 	// y-distance
