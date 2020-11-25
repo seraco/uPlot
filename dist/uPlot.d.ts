@@ -391,9 +391,6 @@ declare namespace uPlot {
 			fill?: CanvasRenderingContext2D['fillStyle'];
 		};
 
-		/** any two adjacent series with band: true, are filled as a single low/high band */
-		band?: boolean;
-
 		/** line & legend color */
 		stroke?: CanvasRenderingContext2D['strokeStyle'];
 
