@@ -2081,7 +2081,7 @@ var uPlot = (function () {
 							minX = inf;
 							maxX = -inf;
 						}
-						_addGap && addGap(gaps, outY, y);
+						_addGap && addGap(gaps, outX, y);
 						accY = y;
 					}
 				}
