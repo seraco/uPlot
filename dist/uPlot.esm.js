@@ -2041,102 +2041,71 @@ function uPlot(opts, data, then) {
 
 		let accX = round(getXPos(xdata[dir == 1 ? _i0 : _i1], scaleX, plotWid, plotLft));
 
-		// the moves the shape edge outside the canvas so stroke doesnt bleed in
-		if (s.band && dir == 1 && _i0 == i0) {
-			if (width)
-				stroke.lineTo(-width, round(getYPos(ydata[_i0], scaleY, plotHgt, plotTop)));
+		if (opts.rotated) {
+			for (let i = dir == 1 ? _i0 : _i1; i >= _i0 && i <= _i1; i += dir) {
+				let y = round(getYPos(ydata[i], scaleY, plotHgt, plotTop));
 
-			if (scaleX.min < xdata[0])
-				gaps.push([plotLft, accX - 1]);
-		}
-
-		for (let i = dir == 1 ? _i0 : _i1; i >= _i0 && i <= _i1; i += dir) {
-			let x = round(getXPos(xdata[i], scaleX, plotWid, plotLft));
-
-			if (x == accX) {
-				if (ydata[i] != null) {
-					outY = round(getYPos(ydata[i], scaleY, plotHgt, plotTop));
-					minY = min(outY, minY);
-					maxY = max(outY, maxY);
+				if (xdata[i] != null) {
+					outX = round(getXPos(xdata[i], scaleX, plotWid, plotLft));
+					if (xdata[i - 1] == null) {
+						stroke.moveTo(outX, y);
+					} else {
+						stroke.lineTo(outX, y);
+					}
 				}
 			}
-			else {
-				let _addGap = false;
+		} else {
+			for (let i = dir == 1 ? _i0 : _i1; i >= _i0 && i <= _i1; i += dir) {
+				let x = round(getXPos(xdata[i], scaleX, plotWid, plotLft));
 
-				if (minY != inf) {
-					stroke.lineTo(accX, minY);
-					stroke.lineTo(accX, maxY);
-					stroke.lineTo(accX, outY);
-					outX = accX;
-				}
-				else
-					_addGap = true;
+				if (x == accX) {
+					if (ydata[i] != null) {
+						outY = round(getYPos(ydata[i], scaleY, plotHgt, plotTop));
+						minY = min(outY, minY);
+						maxY = max(outY, maxY);
+					}
+				} else {
+					let _addGap = false;
 
-				if (ydata[i] != null) {
-					outY = round(getYPos(ydata[i], scaleY, plotHgt, plotTop));
-					stroke.lineTo(x, outY);
-					minY = maxY = outY;
-
-					// prior pixel can have data but still start a gap if ends with null
-					if (x - accX > 1 && ydata[i-1] == null)
+					if (minY != inf) {
+						stroke.lineTo(accX, minY);
+						stroke.lineTo(accX, maxY);
+						stroke.lineTo(accX, outY);
+						outX = accX;
+					} else
 						_addGap = true;
-				}
-				else {
-					minY = inf;
-					maxY = -inf;
-				}
 
-				_addGap && addGap(gaps, outX, x);
+					if (ydata[i] != null) {
+						outY = round(getYPos(ydata[i], scaleY, plotHgt, plotTop));
+						stroke.lineTo(x, outY);
+						minY = maxY = outY;
 
-				accX = x;
+						// prior pixel can have data but still start a gap if ends with null
+						if (x - accX > 1 && ydata[i - 1] == null)
+							_addGap = true;
+					} else {
+						minY = inf;
+						maxY = -inf;
+					}
+
+					_addGap && addGap(gaps, outX, x);
+
+					accX = x;
+				}
 			}
 		}
 
 		// extend or insert rightmost gap if no data exists to the right
-		if (ydata[_i1] == null)
-			addGap(gaps, outX, accX);
-
-		if (s.band) {
-			let overShoot = width * 100, _iy, _x;
-
-			// the moves the shape edge outside the canvas so stroke doesnt bleed in
-			if (dir == -1 && _i0 == i0) {
-				_x = plotLft - overShoot;
-				_iy = _i0;
-			}
-
-			if (dir == 1 && _i1 == i1) {
-				_x = plotLft + plotWid + overShoot;
-				_iy = _i1;
-
-				if (scaleX.max > xdata[dataLen - 1])
-					gaps.push([accX, plotLft + plotWid]);
-			}
-
-			stroke.lineTo(_x, round(getYPos(ydata[_iy], scaleY, plotHgt, plotTop)));
+		if (!opts.rotated) {
+			if (ydata[_i1] == null)
+				addGap(gaps, outX, accX);
 		}
 
 		if (dir == 1) {
-			_paths.clip = buildClip(is, gaps, ydata[_i0] == null, ydata[_i1] == null);
-
-			if (s.fill != null) {
-				let fill = _paths.fill = new Path2D(stroke);
-
-				let fillTo;
-				if (opts.rotated) {
-					fillTo = round(getXPos(s.fillTo(self, is, s.min, s.max), scaleX, plotWid, plotLft));
-					fill.lineTo(fillTo, plotTop);
-					fill.lineTo(fillTo, plotTop + plotHgt);
-				} else {
-					fillTo = round(getYPos(s.fillTo(self, is, s.min, s.max), scaleY, plotHgt, plotTop));
-					fill.lineTo(plotLft + plotWid, fillTo);
-					fill.lineTo(plotLft, fillTo);
-				}
+			if (!opts.rotated) {
+				_paths.clip = buildClip(is, gaps, ydata[_i0] == null, ydata[_i1] == null);
 			}
 		}
-
-		if (s.band)
-			dir *= -1;
 
 		return _paths;
 	}

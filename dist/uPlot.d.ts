@@ -391,17 +391,11 @@ declare namespace uPlot {
 			fill?: CanvasRenderingContext2D['fillStyle'];
 		};
 
-		/** any two adjacent series with band: true, are filled as a single low/high band */
-		band?: boolean;
-
 		/** line & legend color */
 		stroke?: CanvasRenderingContext2D['strokeStyle'];
 
 		/** line width in CSS pixels */
 		width?: CanvasRenderingContext2D['lineWidth'];
-
-		/** area fill & legend color */
-		fill?: CanvasRenderingContext2D['fillStyle'];
 
 		/** area fill baseline (default: 0) */
 		fillTo?: number | ((self: uPlot, seriesIdx: number, dataMin: number, dataMax: number) => number);
