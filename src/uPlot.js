@@ -1259,7 +1259,7 @@ export default function uPlot(opts, data, then) {
 			let values = axis.values(self, axis.filter(self, _splits, i, space, _incr), i, space, _incr);
 
 			// rotating of labels only supported on bottom x axis
-			let angle = side == 2 ? axis.rotate(self, values, i, space) * -PI/180 : 0;
+			let angle = (side == 0 || side == 2) ? axis.rotate(self, values, i, space) * -PI/180 : 0;
 
 			let basePos  = round(axis._pos * pxRatio);
 			let shiftAmt = tickSize + axisGap;
@@ -1270,8 +1270,8 @@ export default function uPlot(opts, data, then) {
 
 			ctx.font         = axis.font[0];
 			ctx.fillStyle    = axis.stroke || hexBlack;									// rgba?
-			ctx.textAlign    = angle > 0 ? LEFT :
-			                   angle < 0 ? RIGHT :
+			ctx.textAlign    = angle > 0 ? (side == 2 ? LEFT : RIGHT) :
+			                   angle < 0 ? (side == 2 ? RIGHT : LEFT) :
 			                   ori == 0 ? "center" : side == 3 ? RIGHT : LEFT;
 			ctx.textBaseline = angle ||
 			                   ori == 1 ? "middle" : side == 2 ? TOP   : BOTTOM;

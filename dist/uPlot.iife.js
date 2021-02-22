@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2020, Leon Sorokin
+* Copyright (c) 2021, Leon Sorokin
 * All rights reserved. (MIT Licensed)
 *
 * uPlot.js (μPlot)
@@ -2227,7 +2227,7 @@ var uPlot = (function () {
 				var values = axis.values(self, axis.filter(self, _splits, i, space, _incr), i, space, _incr);
 
 				// rotating of labels only supported on bottom x axis
-				var angle = side == 2 ? axis.rotate(self, values, i, space) * -PI/180 : 0;
+				var angle = (side == 0 || side == 2) ? axis.rotate(self, values, i, space) * -PI/180 : 0;
 
 				var basePos  = round(axis._pos * pxRatio);
 				var shiftAmt = tickSize + axisGap;
@@ -2238,8 +2238,8 @@ var uPlot = (function () {
 
 				ctx.font         = axis.font[0];
 				ctx.fillStyle    = axis.stroke || hexBlack;									// rgba?
-				ctx.textAlign    = angle > 0 ? LEFT :
-				                   angle < 0 ? RIGHT :
+				ctx.textAlign    = angle > 0 ? (side == 2 ? LEFT : RIGHT) :
+				                   angle < 0 ? (side == 2 ? RIGHT : LEFT) :
 				                   ori == 0 ? "center" : side == 3 ? RIGHT : LEFT;
 				ctx.textBaseline = angle ||
 				                   ori == 1 ? "middle" : side == 2 ? TOP   : BOTTOM;
